@@ -1,7 +1,7 @@
 import { createContext, useCallback, useEffect, useMemo, useRef, useState } from "react"
 
-import { markets } from "../../constants/markets";
-import { calculateChange } from "../../helpers";
+import { markets } from "../../constants/markets"
+import { calculateChange } from "../../helpers"
 
 export interface Ticker24hUpdate {
     ask: string;
@@ -46,22 +46,22 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
     const [term, setTerm] = useState<string>('')
     const [orderBy, setOrderBy] = useState<OrderBy>({ field: 'market', direction: 'asc' })
 
-    const ws = useRef<WebSocket>(new WebSocket('wss://ws.bitvavo.com/v2/')).current
+    const ws = useRef<WebSocket | null>(new WebSocket('wss://ws.bitvavo.com/v2/'))
 
-    useEffect(() => {
-        ws.onopen = () => {
-            ws.send(JSON.stringify({
-                action: 'subscribe',
-                channels: [{ name: 'ticker24h', markets }]
-            }))
-        }
+    const onWSOpen = () => {
+        ws.current?.send(JSON.stringify({
+            action: 'subscribe',
+            channels: [{ name: 'ticker24h', markets }]
+        }))
+    }
 
-        ws.onmessage = (event: MessageEvent) => {
-            const messageData = JSON.parse(event.data);
+    const onWSMessage = useCallback((event: MessageEvent) => {
+        const messageData = JSON.parse(event.data);
 
-            switch (messageData.event) {
-                case "subscribed": {
-                    // initiate the data with the markets
+        switch (messageData.event) {
+            case "subscribed": {
+                // initiate the data with the markets
+                if (!data.length) {
                     const initialData = markets.map((market: string) => (
                         {
                             market: market.split('-')[0],
@@ -73,40 +73,73 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
                         }
                     ))
                     setData(initialData)
-                    break;
                 }
-                case "ticker24h":
-                    // update data with new values
-                    if (messageData.data.length) {
-                        setData((prevData) => {
-                            const newData = [...prevData]
-                            messageData.data.forEach((item: Ticker24hUpdate) => {
-                                const index = newData.findIndex((dataItem) => dataItem.market === item.market.split('-')[0])
-                                newData[index].last = item.last
-                                newData[index].volumeQuote = item.volumeQuote
-                                newData[index].ask = item.ask
-                                newData[index].bid = item.bid
-                                newData[index].open = item.open
-                            })
-                            return newData
+                break;
+            }
+            case "ticker24h":
+                // update data with new values
+                if (messageData.data.length) {
+                    setData((prevData) => {
+                        const newData = [...prevData]
+                        messageData.data.forEach((item: Ticker24hUpdate) => {
+                            const index = newData.findIndex((dataItem) => dataItem.market === item.market.split('-')[0])
+                            newData[index].last = item.last
+                            newData[index].volumeQuote = item.volumeQuote
+                            newData[index].ask = item.ask
+                            newData[index].bid = item.bid
+                            newData[index].open = item.open
                         })
-                    }
+                        return newData
+                    })
+                }
 
-                    setIsInitialLoading(false)
-                    break;
-                default:
-                    break;
+                setIsInitialLoading(false)
+                break;
+            default:
+                break;
+        }
+    }, [data])
+
+    useEffect(() => {
+        if (ws.current !== null) {
+            ws.current.onopen = onWSOpen
+
+            ws.current.onmessage = onWSMessage
+
+            ws.current.onerror = (error: Event) => {
+                console.log('WebSocket error: ', error)
             }
         }
 
-        ws.onerror = (error: Event) => {
-            console.log('WebSocket error: ', error)
+        return () => {
+            if (ws?.current !== null) {
+                ws.current.readyState === 1 && ws.current.close()
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [ws])
+
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                if (ws.current === null) {
+                    ws.current = new WebSocket('wss://ws.bitvavo.com/v2/')
+                    ws.current.onopen = onWSOpen
+                    ws.current.onmessage = onWSMessage
+                }
+            } else if (document.visibilityState === 'hidden') {
+                ws.current?.readyState === 1 && ws.current?.close()
+                ws.current = null
+            }
         }
 
+        document.addEventListener('visibilitychange', handleVisibilityChange)
+
         return () => {
-            ws?.readyState === 1 && ws?.close()
+            document.removeEventListener('visibilitychange', handleVisibilityChange)
         }
-    }, [ws])
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [onWSMessage])
 
     const performSearch = useCallback((term: string) => {
         setTerm(term)
