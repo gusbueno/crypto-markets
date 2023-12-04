@@ -18,13 +18,15 @@ export interface Ticker24hUpdate {
     volumeQuote: string | null;
 }
 
-type DataMarket = Pick<Ticker24hUpdate, "market" | "last" | "volumeQuote"> & { change24h: string }
+export type DataMarket = Pick<Ticker24hUpdate, "market" | "last" | "volumeQuote"> & { change24h: string }
 
 
 type WebSocketContextProps = {
     data: Array<DataMarket>;
     isInitialLoading: boolean;
     performSearch: (term: string) => void;
+    orderBy: OrderBy;
+    handleSort: (field: keyof DataMarket) => void;
 }
 
 type WebSocketProviderProps = {
@@ -110,16 +112,35 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
         setTerm(term)
     }, [])
 
+    const handleSort = useCallback((field: keyof DataMarket) => {
+        setOrderBy((prevOrderBy) => {
+            if (prevOrderBy.field === field) {
+                return {
+                    field,
+                    direction: prevOrderBy.direction === 'asc' ? 'desc' : 'asc'
+                }
+            }
+
+            return {
+                field,
+                direction: 'asc'
+            }
+        })
+    }, [])
+
     const memoizedData = useMemo(() => {
-        // update data with new values
+        // create a list with the values that we need
         const newData = [...data].map((item) => {
             const { market, last, volumeQuote, ask, bid, open } = item
             const change24h = calculateChange({ ask, bid, open })
 
             return {
-                market: market.split('-')[0],
+                market,
                 last: last ? last : '0',
-                volumeQuote: volumeQuote ? Intl.NumberFormat().format(+parseFloat(volumeQuote).toFixed(2)) : '0',
+                volumeQuote:
+                    volumeQuote
+                        ? volumeQuote
+                        : '0',
                 change24h
             }
         })
@@ -132,10 +153,12 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
 
         // sort
         filteredData.sort((a, b) => {
+            const aItem = orderBy.field === 'market' ? a[orderBy.field] : parseFloat(a[orderBy.field])
+            const bItem = orderBy.field === 'market' ? b[orderBy.field] : parseFloat(b[orderBy.field])
             if (orderBy.direction === 'asc') {
-                return a[orderBy.field] > b[orderBy.field] ? 1 : -1
+                return aItem > bItem ? 1 : -1
             } else {
-                return a[orderBy.field] < b[orderBy.field] ? 1 : -1
+                return aItem < bItem ? 1 : -1
             }
         })
 
@@ -146,7 +169,9 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
         <WebSocketContext.Provider value={{
             data: memoizedData,
             isInitialLoading,
-            performSearch
+            performSearch,
+            orderBy,
+            handleSort
         }}>
             {children}
         </WebSocketContext.Provider>

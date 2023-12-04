@@ -1,10 +1,8 @@
 import { memo } from "react"
 
-import { Ticker24hUpdate } from "../../providers/WebSocketProvider"
+import { DataMarket } from "../../providers/WebSocketProvider"
 
-type MarketsTableRowProps = Pick<Ticker24hUpdate, "market" | "last" | "volumeQuote"> & {
-    change24h?: string;
-}
+type MarketsTableRowProps = DataMarket
 
 export const MarketsTableRow = memo(({ market, last, volumeQuote, change24h }: MarketsTableRowProps) => {
     return (
@@ -18,8 +16,8 @@ export const MarketsTableRow = memo(({ market, last, volumeQuote, change24h }: M
                 </div>
 
             </th>
-            <td className="px-6 py-4 text-right">€{last}</td>
-            <td className="px-6 py-4 text-right">{volumeQuote}</td>
+            <td className="px-6 py-4 text-right">€{parseFloat(last!).toLocaleString()}</td>
+            <td className="px-6 py-4 text-right">{parseFloat(volumeQuote!).toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
             <td className="px-6 py-4 text-right">{change24h}%</td>
         </tr>
     )

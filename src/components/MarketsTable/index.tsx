@@ -1,4 +1,5 @@
 import { useWebSocket } from "../../hooks/useWebSocket"
+import { MarketsTableHeader } from "../MarketsTableHeader"
 import { MarketsTableRow } from "../MarketsTableRow"
 
 export const MarketsTable = () => {
@@ -6,14 +7,7 @@ export const MarketsTable = () => {
 
     return (
         <table className="w-full text-sm text-left text-gray-500 border table-auto">
-            <thead className="text-xs text-gray-700 uppercase bg-gray-50">
-                <tr>
-                    <th scope="col" className="px-8 py-4">Market</th>
-                    <th scope="col" className="px-8 py-4">Price</th>
-                    <th scope="col" className="px-8 py-4">Volumen (24H)</th>
-                    <th scope="col" className="px-8 py-4">Change (24H)</th>
-                </tr>
-            </thead >
+            <MarketsTableHeader />
             <tbody>
                 {!isInitialLoading ? data.map((item) => (
                     <MarketsTableRow
@@ -25,7 +19,7 @@ export const MarketsTable = () => {
                     />
                 )) : (
                     <tr>
-                        <td colSpan={4}>Loading...</td>
+                        <td colSpan={4} className="px-6 py-4 text-center">Loading...</td>
                     </tr>
 
                 )}
