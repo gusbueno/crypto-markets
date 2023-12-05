@@ -1,4 +1,6 @@
 import { createContext, useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { ToastContainer, toast } from "react-toastify"
+import 'react-toastify/dist/ReactToastify.css';
 
 import { markets } from "../../constants/markets"
 import { calculateChange } from "../../helpers"
@@ -60,6 +62,7 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
 
         switch (messageData.event) {
             case "subscribed": {
+                toast.success('Successfully connected!')
                 // initiate the data with the markets
                 if (!data.length) {
                     const initialData = markets.map((market: string) => (
@@ -100,20 +103,23 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
         }
     }, [data])
 
+    const onWSError = () => {
+        toast.error('An error occurred with the websocket connection!')
+    }
+
     useEffect(() => {
         if (ws.current !== null) {
             ws.current.onopen = onWSOpen
 
             ws.current.onmessage = onWSMessage
 
-            ws.current.onerror = (error: Event) => {
-                console.log('WebSocket error: ', error)
-            }
+            ws.current.onerror = onWSError
         }
 
         return () => {
             if (ws?.current !== null) {
                 ws.current.readyState === 1 && ws.current.close()
+                toast.info('Disconnected!')
             }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -126,10 +132,12 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
                     ws.current = new WebSocket('wss://ws.bitvavo.com/v2/')
                     ws.current.onopen = onWSOpen
                     ws.current.onmessage = onWSMessage
+                    ws.current.onerror = onWSError
                 }
             } else if (document.visibilityState === 'hidden') {
                 ws.current?.readyState === 1 && ws.current?.close()
                 ws.current = null
+                toast.info('Disconnected!')
             }
         }
 
@@ -206,6 +214,7 @@ export const WebSocketProvider = ({ children }: WebSocketProviderProps) => {
             orderBy,
             handleSort
         }}>
+            <ToastContainer />
             {children}
         </WebSocketContext.Provider>
     )
